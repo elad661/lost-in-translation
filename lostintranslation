@@ -57,7 +57,7 @@ class LostInTranslation():
         source_lang = data[2]
         return (translated_result, source_lang)
 
-    long_lang_list = ['iw', 'yi', 'la', 'ar', 'ru', 'ur', 'sw', 'fi', 'es', 'nl', 'no', 'de', 'zh', 'ja', 'hi', 'af']
+    long_lang_list = ['iw', 'yi', 'la', 'ar', 'ru', 'sw', 'fi', 'es', 'nl', 'no', 'de', 'zh', 'ja', 'hi', 'af']
     def get_random_lang(self, long_list, short_list):
         random_index = random.randint(0, len(long_list) - 1)
         random_lang = long_list[random_index]
@@ -112,7 +112,7 @@ def main(argv=None):
     elif opts.port:
         cherrypy.config.update({'server.socket_port': int(opts.port)})
     if (opts.deamon):
-        logfile = os.path.join(os.getcwd(), 'birdfood.log')
+        logfile = os.path.join(os.getcwd(), 'lostintranslation.log')
         pid = PIDFile(cherrypy.engine, os.path.join(os.getcwd(), 'lostintranslation.pid'))
         pid.subscribe()
         d = Daemonizer(cherrypy.engine, stdout=logfile, stderr=logfile)
