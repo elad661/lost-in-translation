@@ -1,0 +1,123 @@
+#! /bin/env python
+# coding=utf8
+#
+# lost-in-translation - A web app to showcase why machine-translation sucks
+#
+#╔════════════════════════════════════════════════════════════════════════════╗
+#║ Copyright © 2013, Elad Alfassa <elad@fedoraproject.org>                    ║
+#║                                                                            ║
+#║   This program is free software: you can redistribute it and/or modify     ║
+#║   it under the terms of the GNU General Public License as published by     ║
+#║   the Free Software Foundation, either version 3 of the License, or        ║
+#║   (at your option) any later version.                                      ║
+#║                                                                            ║
+#║   This program is distributed in the hope that it will be useful,          ║
+#║   but WITHOUT ANY WARRANTY; without even the implied warranty of           ║
+#║   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the            ║
+#║   GNU General Public License for more details.                             ║
+#║                                                                            ║
+#║   You should have received a copy of the GNU General Public License        ║
+#║   along with this program.  If not, see <http://www.gnu.org/licenses/>.    ║
+#║                                                                            ║
+#╚════════════════════════════════════════════════════════════════════════════╝
+from __future__ import print_function
+import tweepy
+import cherrypy
+from cherrypy.process.plugins import Daemonizer
+from cherrypy.process.plugins import PIDFile
+import ConfigParser
+import os
+import random
+import os.path
+import sys
+import re
+import optparse
+import json
+import re
+from datetime import datetime
+from mako.template import Template
+from mako import exceptions
+import urllib2
+from urllib2 import quote, unquote
+app_location = os.path.dirname(os.path.abspath(__file__))
+
+class LostInTranslation():
+    def translate(self, string, outlang):
+        uri = 'http://translate.google.com/translate_a/t?client=t&sl=auto&tl=%s&q=%s' % (outlang, string)
+        req = urllib2.Request(uri, headers = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:24.0) Gecko/20100101 Firefox/24.0'})
+        result = urllib2.urlopen(req).read()
+        while ',,' in result:
+            result = result.replace(',,', ',null,')
+        result = result.replace('[,', '[')
+        try:
+            data = json.loads(result)
+        except:
+            print(result)
+        translated_result = data[0][0][0]
+        source_lang = data[2]
+        return (translated_result, source_lang)
+
+    long_lang_list = ['iw', 'yi', 'la', 'ar', 'ru', 'ur', 'sw', 'fi', 'es', 'nl', 'no', 'de', 'zh', 'ja', 'hi', 'af']
+    def get_random_lang(self, long_list, short_list):
+        random_index = random.randint(0, len(long_list) - 1)
+        random_lang = long_list[random_index]
+        if not random_lang in short_list:
+            short_list.append(random_lang)
+        else:
+            return self.get_random_lang(long_list, short_list)
+        return short_list
+
+    def quote(self, string):
+        if isinstance(string, unicode):
+            string = string.encode('utf8')
+        return urllib2.quote(string)
+
+    @cherrypy.expose()
+    def t(self, q=None):
+        lang_list = []
+        print(self.quote(q))
+        for __ in range(0, 11):
+            lang_list = self.get_random_lang(self.long_lang_list, lang_list)
+        random.shuffle(lang_list)
+        phrase = self.translate(self.quote(q), 'en')
+        source_lang = phrase[1]
+        phrases_list = [phrase]
+        if source_lang in lang_list:
+            lang_list.remove(source_lang)
+            
+        print(phrase)
+        for lang in lang_list:
+            phrase = self.translate(self.quote(phrase[0]), lang)
+            phrase = self.translate(self.quote(phrase[0]), 'en')
+            phrases_list.append((lang, phrase[0]))
+            print('%s --> %s' %(lang,phrase[0]))
+        phrases_list.append(self.translate(self.quote(phrase[0]), source_lang)[0])
+        return json.dumps(phrases_list)
+
+    @cherrypy.expose()
+    def index(self):
+        return cherrypy.lib.static.serve_file(os.path.join(app_location, 'index.html'))
+
+
+def main(argv=None):
+    parser = optparse.OptionParser('%prog [options]')
+    parser.add_option('-p', '--port', 
+            help = 'Specify port number to listen on (default is 8080')
+    parser.add_option('-d', '--deamonize', action="store_true", dest="deamon",
+            help='Run as a deamon')
+    opts, args = parser.parse_args(argv)
+    if opts.port and not opts.port.isdigit():
+        print("Invalid port number!")
+        return 3
+    elif opts.port:
+        cherrypy.config.update({'server.socket_port': int(opts.port)})
+    if (opts.deamon):
+        logfile = os.path.join(os.getcwd(), 'birdfood.log')
+        pid = PIDFile(cherrypy.engine, os.path.join(os.getcwd(), 'lostintranslation.pid'))
+        pid.subscribe()
+        d = Daemonizer(cherrypy.engine, stdout=logfile, stderr=logfile)
+        d.subscribe()
+    cherrypy.quickstart(LostInTranslation())
+
+if __name__ == '__main__':
+    main()
