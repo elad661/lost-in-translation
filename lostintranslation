@@ -21,7 +21,6 @@
 #║                                                                            ║
 #╚════════════════════════════════════════════════════════════════════════════╝
 from __future__ import print_function
-import tweepy
 import cherrypy
 from cherrypy.process.plugins import Daemonizer
 from cherrypy.process.plugins import PIDFile
@@ -30,13 +29,8 @@ import os
 import random
 import os.path
 import sys
-import re
 import optparse
 import json
-import re
-from datetime import datetime
-from mako.template import Template
-from mako import exceptions
 import urllib2
 from urllib2 import quote, unquote
 app_location = os.path.dirname(os.path.abspath(__file__))
